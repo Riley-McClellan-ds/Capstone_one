@@ -1,15 +1,17 @@
 import pandas as pd
 import numpy as np
-import random 
 import matplotlib.pyplot as plt
 from scipy.stats import ttest_1samp
 import scipy.stats as stats
+import time
 
+t0 = time.time()
+print(t0)
 plt.rcParams.update({'font.size': 16, 'font.family': 'sans'})
 plt.style.use('ggplot')
 
 
-random.seed(30)
+
 
 pd.set_option('display.max_row', 100)
 pd.set_option('display.max_columns', 50)
@@ -55,7 +57,10 @@ def clean_data():
         tc[i] = tc[i].replace("No", 0)
 
 clean_data()
-
+t1 = time.time()
+print(t1-t0)
+print('clean')
+print()
 #need to account for problem column and zipcode
 # 'curb_loc' is categorical needs each value processed as a "Yes" separately Use intermediate value to have "third option"
 # only while switcing to yes for the sake of using function to plot
@@ -94,7 +99,10 @@ def aggregate_tree_indicators(df, new_col):
     return agg_df
 
 agg_df = aggregate_tree_indicators(tc, "tot_ind")
-
+t2 = time.time()
+print(t2-t1)
+print('agg')
+print()
 def incomplete_function_to_f_remove_nan_health(df):
     lst = 0
     for i in df.index:
@@ -150,8 +158,10 @@ for i in tc.columns:
 for i in tc.columns:
     for value in tc[i].unique():
         cv[i].append(value)
-
-
+t3 = time.time()
+print(t3-t2)
+print('cv')
+print()
 def tot_tree_health(df):
     health_dict = dict()
     for item in cv['health']:
@@ -306,7 +316,6 @@ def plottheshit(dick, ax, label_start="Potential Indicators"):
         """Attach a text label above each bar in *rects*, displaying its height."""
         for rect in rects:
             height = rect.get_height()
-            height_lst.append(height.item())
             ax.annotate('{}'.format(height),
                 xy=(rect.get_x() + rect.get_width() / 2, height),
                 xytext=(0, 3),  # 3 points vertical offset
@@ -389,29 +398,18 @@ def plot_binom_cols(df, binom_cols, ax):
 
 
 
-height_lst = []
 
-def get_health_values():
-    labels = sorted(list(dick.keys()))
-    Good = []
-    Fair = []
-    Poor = []
-    Dead = []
-    status = {
-        "Good": Good,
-        "Fair": Fair,
-        "Poor": Poor,
-        "Dead": Dead
-    }
-    better_labels = []
-
-    cat_idx = categorical_val(df, column)
-    cat_vs_health = dict()
-    for i in cat_idx.keys():
-        cat_vs_health[i] = indicator_vs_health(df, cat_idx[i])
-    pass
 
 def get_dick(df, column):
+    """[outputs dictionary necessary to graph/understand breakdown of indicators compa]
+
+    Args:
+        df ([type]): [description]
+        column ([type]): [description]
+
+    Returns:
+        [type]: [description]
+    """    
     cat_idx = categorical_val(df, column)
     better_column = better_col_names[column]
     cat_vs_health = dict()
@@ -419,41 +417,22 @@ def get_dick(df, column):
         cat_vs_health[i] = indicator_vs_health(df, cat_idx[i])
     # plottheshit(cat_vs_health, ax,label_start=better_column)
     return cat_vs_health
-# this mess spits out two ratios that represent no indicator ratio of healthy to unhealth and indticator ratio
-def ratio_8():
-    print(height_lst)
-
-    
-
-
-    total_no_idc = sum(height_lst[16::8]) + height_lst[8]
-
-    nidc_uh_rt = sum(height_lst[16::8]) / height_lst[8]
-    print(nidc_uh_rt)
-
-
-    total_idc = (sum(height_lst[17:24]) + sum(height_lst[25:])) + sum(height_lst[9::16])
-    idc_uh_rt = (sum(height_lst[17:24]) + sum(height_lst[25:]))/ sum(height_lst[9::16])
-
-
-    print()
-    print(nidc_uh_rt)
-    print()
-    print(idc_uh_rt)
-    print()
-    print(sum(height_lst[8:]))
-    print()
-    print(total_idc)
-    print(total_no_idc)
-    pass
 
 
 def ratio_of_G_to_nG(cat_vs_health):
+    """[Takes a dict of dict's broken down by tree health]
+
+    Args:
+        cat_vs_health ([Dict]): [Dictionary of Dictionaries containing G F P breakdown for trees]
+
+    Returns:
+        [variables necessary for p_value calculation and graphing]: [tuple of values]
+    """    
     zero_good = 0
     zero_bad = 0
 
     tot_ind_good = 0
-    tot_ind_bad = 0
+    tot_uh_trees = 0
     for i in cat_vs_health.keys():
         if i == 0:
             zero_good += cat_vs_health[i]['Good']
@@ -461,82 +440,116 @@ def ratio_of_G_to_nG(cat_vs_health):
             zero_bad += cat_vs_health[i]['Poor']
         else:
             tot_ind_good += cat_vs_health[i]['Good']
-            tot_ind_bad += cat_vs_health[i]['Fair']
-            tot_ind_bad += cat_vs_health[i]['Poor']
-    zero_ratio = zero_bad/ (zero_bad + zero_good)
+            tot_uh_trees += cat_vs_health[i]['Fair']
+            tot_uh_trees += cat_vs_health[i]['Poor']
+    if (zero_bad + zero_good) == 0:
+        return [1, 1, 1, 1, "no", 1,]
+    else:
+        p_val = zero_bad/ (zero_bad + zero_good)
 
-    zero_ind_tot = (tot_ind_bad + tot_ind_good)
+    zero_ind_tot = (tot_uh_trees + tot_ind_good)
 
-    ind_ratio = tot_ind_bad/ (tot_ind_bad + tot_ind_good)
+    if (tot_uh_trees + tot_ind_good) == 0:
+        return [1, 1, 1, 1, "no", 1,]
+    else:
+        ind_ratio = tot_uh_trees/ (tot_uh_trees + tot_ind_good)
 
-    ind_total = (tot_ind_bad + tot_ind_good)
-    return zero_bad, zero_ind_tot, zero_ratio, tot_ind_bad, ind_total, ind_ratio
-
-zero_bad, zero_ind_tot, zero_ratio, tot_ind_bad, ind_total, ind_ratio = ratio_of_G_to_nG(get_dick(tc, 'tot_ind'))
-
-    # tot_ni_uh = sum(height_lst[20::10])
-    # total_no_idc = sum(height_lst[20::10]) + height_lst[10]
-    # nidc_uh_rt = sum(height_lst[20::10]) / height_lst[10]
-    
-
-    # tot_i_uh = (sum(height_lst[21:29]) + sum(height_lst[31:]))
-    # total_idc = (sum(height_lst[21:29]) + sum(height_lst[31:])) + sum(height_lst[11:20])
-    # idc_uh_rt = (sum(height_lst[21:29]) + sum(height_lst[31:]))/ sum(height_lst[11:20])
+    n_val = (tot_uh_trees + tot_ind_good)
+    return zero_bad, zero_ind_tot, p_val, tot_uh_trees, n_val, ind_ratio
 
 
-    # print()
-    # print(nidc_uh_rt)
-    # print()
-    # print(idc_uh_rt)
-    # print()
-    # print()
-    # print(total_idc)
-    # print(total_no_idc)
-    # return nidc_uh_rt, idc_uh_rt, total_no_idc, total_idc, tot_ni_uh, tot_i_uh
 
-def binomial_graph(n, p, bad, limit=50000):
-    binomial = stats.binom(n=n, p=p)
+def get_p_value(n, p, bad, limit=4000, graph_dist=False, graph_p=False):
+    if n == "no":
+        return "no_p_value_for_you"
     binomial_mean = p * n
     binomial_var = n * p * (1-p)
+    
     normal_approx = stats.norm(binomial_mean, np.sqrt(binomial_var))
-    x = np.linspace(0, n, num=n)
+    def hide_dist_graph():
+        binomial = stats.binom(n=n, p=p)
+        std = np.sqrt(binomial_var)
+        x = np.linspace(0, n, num=n)
 
-    fig, axs = plt.subplots(2, figsize=(16, 6))
-    bar_sizes = [binomial.pmf(i) for i in range(n+1)]
-    bars = axs[0].bar(range(n+1), bar_sizes, color="black", align="center")
-    axs[0].plot(x, normal_approx.pdf(x), linewidth=3)
-    axs[0].set_xlim(0, limit)
-
-    bars = axs[1].bar(range(n+1), bar_sizes, color="grey", align="center")
-    axs[1].plot(x, normal_approx.pdf(x), linewidth=3)
-    axs[1].set_xlim(42000, 46000)
-
-    axs[0].set_title("# of Unhealthy trees under null")
-    plt.show()
-
-    p_value = 1 - normal_approx.cdf(bad-.1)
-    print("p-value for one month kickflip experiment: {:2.2f}".format(p_value))
-
-    fig, ax = plt.subplots(1, figsize=(16, 3))
-
-    ax.plot(x, normal_approx.pdf(x), linewidth=3)
-    ax.set_xlim(42000, 46000)
-    ax.fill_between(x, normal_approx.pdf(x), 
-                    where=(x >= n-1), color="red", alpha=0.5)
-    ax.set_title("p-value Region")
-    plt.show()
+        fig, axs = plt.subplots( figsize=(16, 6))
+        bar_sizes = [binomial.pmf(i) for i in range(n+1)]
+        bars = axs[1].bar(range(n+1), bar_sizes, color="grey", align="center")
+        axs[1].plot(x, normal_approx.pdf(x), linewidth=3)
+        axs[1].set_xlim(binomial_mean-4*std, binomial_mean+4*std)
+        axs[0].set_title("# of Unhealthy trees under null")
+        plt.show()
+    def hide_dist_p_graph():
         
+        fig, ax = plt.subplots(1, figsize=(16, 3))
 
+        ax.plot(x, normal_approx.pdf(x), linewidth=3)
+        ax.set_xlim(binomial_mean-4*std, binomial_mean+4*std)
+        ax.fill_between(x, normal_approx.pdf(x), 
+                        where=(x >= n-1), color="red", alpha=0.5)
+        ax.set_title("p-value Region")
+        plt.show()
+    if graph_dist == True:
+        hide_dist_graph()
+    if graph_p ==True:
+        hide_dist_p_graph()
+    p_value = 1 - normal_approx.cdf(bad-.1)
+    print(f"p-value for indicator values is: {p_value:.4f}")
+    return p_value
+    
+t4 = time.time()
+print(t4-t3)
+print('plotvals')
+print()
+ 
 # print(get_dick(agg_df, 'tot_ind'))
 
+def get_indv_p_values(agg_df):
+    p_value_dict = dict()
+    temp_dict = dict()
+    temp_dict_helper = get_dick(agg_df, 'tot_ind')
+    temp_dict[0] = temp_dict_helper[0]
+    for i in temp_dict_helper.keys():
+        if i != 0:
+            temp_dict[i] = temp_dict_helper[i]
+            print(temp_dict)
+            _, w, p, t, n, rt = ratio_of_G_to_nG(temp_dict)
+            p_value_dict[i] = get_p_value(n, p, t, limit=w+t)
+            temp_dict.pop(i)
+    return p_value_dict
+
+def reveal_results():
+    p_values = get_indv_p_values(agg_df)
+    alpha_bon = .05 / len(p_values)
+    for i in p_values.keys():
+        if p_values[i] < alpha_bon:
+            print(f'We reject the null hypothesis with a value of {p_values[i]} at an indicator score of {str(i)}')
+        else:
+            print(f'We fail to reject the null hypothesis with a value of {p_values[i]} at an indicator score of {str(i)}')
+
+reveal_results()
+
+# print(get_indv_p_values(agg_df))
+print()
+
+t5 = time.time()
+print(t5-t4)
+print('get_dick')
+print()
+print(t5)
+print()
 #! fig, ax = plt.subplots(figsize=(16,7))
 #! plot_cat_col(agg_df, 'tot_ind', ax)
 
-#! nidc_uh_rt, idc_uh_rt, total_no_idc, total_idc, tot_ni_uh, tot_i_uh = ratio_9()
 
-binomial_graph(ind_total, zero_ratio, tot_ind_bad)
 
-plt.show()
+zero_bad, zero_ind_tot, p_val, tot_uh_trees, n_val, ind_ratio = ratio_of_G_to_nG(get_dick(agg_df, 'tot_ind'))
+for i in [zero_bad, zero_ind_tot, p_val, tot_uh_trees, n_val, ind_ratio]:
+    print(i)
+
+
+get_p_value(n_val, p_val, tot_uh_trees, limit=zero_ind_tot+tot_uh_trees)
+
+# plt.show()
 
 
 # cva = dict()
