@@ -18,11 +18,12 @@ pd.set_option('display.max_columns', 50)
 
 tc = pd.read_csv('/Users/riley/Desktop/DSI/den-19/capstones/Capstone_one/tree-csvs/new_york_tree_census_2015.csv')
 #sample for testing will change tc1 back to tc upon deletion
+# tc.drop(index=297358, inplace=True) #can only use with orig tc
 
 # tc = tc1.sample(50000, random_state=2)
 tsp = pd.read_csv('/Users/riley/Desktop/DSI/den-19/capstones/Capstone_one/tree-csvs/new_york_tree_species.csv') 
 
-# tc.drop(index=297358, inplace=True) #can only use with orig tc
+tc.drop(index=297358, inplace=True) #can only use with orig tc
 
 # You don't have guards and stewards for dead trees or stumps all the issues except 51 were directly related to that issue the 48 of the 51 
 # Nan values were in the problems section
@@ -33,7 +34,7 @@ indicator_cols = ['curb_loc', 'spc_latin', 'steward', 'guards', 'sidewalk', 'use
         'brch_light', 'brch_shoe', 'brch_other', 'zipcode', 'borocode' ]
 
 binom_cols = ['root_stone', 'root_grate', 'root_other', 'trunk_wire', 'trnk_light', 'trnk_other', \
-        'brch_light', 'brch_shoe', 'brch_other', 'sidewalk']
+        'brch_light', 'brch_shoe', 'brch_other', 'sidewalk', 'problems']
 
 non_bin_ind_col = ['curb_loc', 'steward', 'sidewalk', 'user_type', 'borocode']
 
@@ -45,12 +46,22 @@ def clean_data():
     tc.loc[tc.sidewalk == 'NoDamage', 'sidewalk'] = 0
     tc.loc[tc.sidewalk == 'Damage', 'sidewalk'] = 1
 
+    
+    
+
     tc['spc_latin'] = tc['spc_latin'].replace([np.nan],'Unknown')
     tc['spc_common'] = tc['spc_common'].replace([np.nan],'Unknown')
     tc['steward'] = tc['steward'].replace([np.nan],'None')
     tc['guards'] = tc['guards'].replace([np.nan],'None')
     tc['sidewalk'] = tc['sidewalk'].replace([np.nan],'None')
-    tc['problems'] = tc['problems'].replace([np.nan],'Unknown') 
+    tc['problems'] = tc['problems'].replace([np.nan], "Unknown") 
+
+    #! problems made into binary due to inability to consolodate many unique problem errors
+    # tc['problems'] = tc['problems']str.replace("None", '0') 
+    for i in 'SWTRMB':
+        tc['problems'] = tc['problems'].str.replace(rf'{i}.+', '1') 
+    tc.loc[tc.problems == "None", 'problems'] = 0
+    tc.loc[tc.problems == "1", 'problems'] = 1
 
     for i in binom_cols:
         tc[i] = tc[i].replace("Yes", 1)
@@ -103,6 +114,7 @@ t2 = time.time()
 print(t2-t1)
 print('agg')
 print()
+
 def incomplete_function_to_f_remove_nan_health(df):
     lst = 0
     for i in df.index:
@@ -126,7 +138,9 @@ def find_nan_values(df):
             nan_nums.append(df[i].isnull().sum())
     return nan_columns, nan_nums
 
-
+# a, b = find_nan_values(tc)
+# print(a)
+# print(b)
 
 def check_nan_amount(df, columns):
     '''
@@ -145,8 +159,8 @@ def check_nan_amount(df, columns):
             idx.add(b)
     return len(idx), idx
 
-# a, b = check_nan_amount(tc, tc.columns)
-# print(a)
+# lng, idx = check_nan_amount(tc, a)
+# print(idx)
 
 
 #Dict of unique values in each column
@@ -158,6 +172,10 @@ for i in tc.columns:
 for i in tc.columns:
     for value in tc[i].unique():
         cv[i].append(value)
+
+for i in cv['problems']:
+    print(i)
+
 t3 = time.time()
 print(t3-t2)
 print('cv')
@@ -294,8 +312,11 @@ def plottheshit(dick, ax, label_start="Potential Indicators"):
     Args:
         dick ([dict of dict]): Column: A dictionary with keys being individual indicators
         Values are the number of trees found presenting a given indicator in each health category.
-    """    
-    labels = sorted(list(dick.keys()))
+    """
+    if len(list(dick.keys())) == 11:
+        labels = ['problems', 'sidewalk', 'root_stone', 'brch_light', 'root_other', 'trnk_other', 'brch_other', 'trunk_wire', 'root_grate', 'trnk_light', 'brch_shoe']
+    else:
+        labels = sorted(list(dick.keys()))
     Good = []
     Fair = []
     Poor = []
@@ -377,10 +398,24 @@ def plot_binom_cols(df, binom_cols, ax):
     for i in binom_cols:
         idx_by_health_dict[i] = indicator_vs_health(df, idc_idx[i])
     plottheshit(idx_by_health_dict, ax)
-    
-# fig, ax = plt.subplots(figsize=(16,10))
-# plot_binom_cols(binom_cols, ax)
-# plt.show()
+
+t4 = time.time()
+print(t4-t3)
+print('plotvals')
+print()
+
+fig, ax = plt.subplots(figsize=(16,10))
+plot_binom_cols(tc, binom_cols, ax)
+plt.show()
+
+print()
+
+t5 = time.time()
+print(t5-t4)
+print('get_dick')
+print()
+print(t5)
+print()
 
 # fig, ax = plt.subplots(figsize=(16,7))
 # plot_cat_col(agg_df, 'tot_ind', ax)
@@ -496,10 +531,7 @@ def get_p_value(n, p, bad, limit=4000, graph_dist=False, graph_p=False):
     print(f"p-value for indicator values is: {p_value:.4f}")
     return p_value
     
-t4 = time.time()
-print(t4-t3)
-print('plotvals')
-print()
+
  
 # print(get_dick(agg_df, 'tot_ind'))
 
@@ -526,28 +558,21 @@ def reveal_results():
         else:
             print(f'We fail to reject the null hypothesis with a value of {p_values[i]} at an indicator score of {str(i)}')
 
-reveal_results()
+# reveal_results()
 
 # print(get_indv_p_values(agg_df))
-print()
 
-t5 = time.time()
-print(t5-t4)
-print('get_dick')
-print()
-print(t5)
-print()
-#! fig, ax = plt.subplots(figsize=(16,7))
+#! fig, ax = plt.subplots(figsize=(16,7))   
 #! plot_cat_col(agg_df, 'tot_ind', ax)
 
 
 
-zero_bad, zero_ind_tot, p_val, tot_uh_trees, n_val, ind_ratio = ratio_of_G_to_nG(get_dick(agg_df, 'tot_ind'))
-for i in [zero_bad, zero_ind_tot, p_val, tot_uh_trees, n_val, ind_ratio]:
-    print(i)
+# zero_bad, zero_ind_tot, p_val, tot_uh_trees, n_val, ind_ratio = ratio_of_G_to_nG(get_dick(agg_df, 'tot_ind'))
+# for i in [zero_bad, zero_ind_tot, p_val, tot_uh_trees, n_val, ind_ratio]:
+#     print(i)
 
 
-get_p_value(n_val, p_val, tot_uh_trees, limit=zero_ind_tot+tot_uh_trees)
+# get_p_value(n_val, p_val, tot_uh_trees, limit=zero_ind_tot+tot_uh_trees)
 
 # plt.show()
 
