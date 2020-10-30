@@ -4,6 +4,9 @@ import matplotlib.pyplot as plt
 from scipy.stats import ttest_1samp
 import scipy.stats as stats
 import time
+import matplotlib as mpl
+mpl.rcParams['figure.dpi'] = 100
+
 # import matplotlib.pyplot as plt
 # import matplotlib.colors as mcolors
 
@@ -27,7 +30,7 @@ tsp = pd.read_csv('/Users/riley/Desktop/DSI/den-19/capstones/Capstone_one/tree-c
 
 # You don't have guards and stewards for dead trees or stumps all the issues except 51 were directly related to that issue the 48 of the 51 
 # Nan values were in the problems section
-print(tc.columns)
+
 
 indicator_cols = ['curb_loc', 'spc_latin', 'steward', 'guards', 'sidewalk', 'user_type', \
     'problems', 'root_stone', 'root_grate', 'root_other', 'trunk_wire', 'trnk_light', 'trnk_other', \
@@ -120,10 +123,10 @@ def aggregate_tree_indicators(df, new_col):
     return agg_df
 
 agg_df = aggregate_tree_indicators(tc, "tot_ind")
-t2 = time.time()
-print(t2-t1)
-print('agg')
-print()
+# t2 = time.time()
+# print(t2-t1)
+# print(agg_df.sort_values('tot_ind', ascending=False).head(5))
+# print()
 
 def incomplete_function_to_f_remove_nan_health(df):
     lst = 0
@@ -185,7 +188,7 @@ for i in tc.columns:
 
 
 t3 = time.time()
-print(t3-t2)
+# print(t3-t2)
 print('cv')
 print()
 def tot_tree_health(df):
@@ -350,8 +353,8 @@ def plottheshit(diction, ax, label_start="Potential Indicators"):
                     labels = ["TreesCount Staff", 'Volunteer', 'NYC Parks Staff']
                 if i in ["Queens", "Brooklyn", "Manhattan", "Bronx", "Staten Island"]:
                     labels = ["Queens", "Brooklyn", "Manhattan", "Bronx", "Staten Island"]
-        # else:
-        #     labels = sorted(list(diction.keys()))
+        if 1 in diction.keys():
+            labels = sorted(list(diction.keys()))
             
         better_labels = []
         if labels[0] in better_col_names.keys():
@@ -384,7 +387,7 @@ def plottheshit(diction, ax, label_start="Potential Indicators"):
                 xy=(rect.get_x() + rect.get_width() / 2, height),
                 xytext=(0, 3),  # 3 points vertical offset
                 textcoords="offset points",
-                ha='center', va='bottom')
+                ha='center', va='bottom', rotation=0)
 
 
     print(labels)
@@ -395,6 +398,7 @@ def plottheshit(diction, ax, label_start="Potential Indicators"):
     x = np.arange(len(labels))
     width = .25
 
+    ax.set_ylim(ymin=-100.0, ymax=400000.0)
     rects1 = ax.bar(x - width*1.5, Good, width, label='Good', Color="green")
     rects2 = ax.bar(x - width/2, Fair, width, label='Fair', color="orange")
     rects3 = ax.bar(x + width/2, Poor, width, label='Poor', color="magenta")
@@ -404,9 +408,10 @@ def plottheshit(diction, ax, label_start="Potential Indicators"):
     rects_lst = [rects1, rects2, rects3]
 
     ax.set_ylabel('Number of Trees Per Category')
+    
     ax.set_title(f"{label_start} compared to Tree Health")
     ax.set_xticks(x)
-    ax.set_xticklabels(better_labels, rotation=30, ha="right")
+    ax.set_xticklabels(better_labels, ha="right", rotation=30) #, rotation=30
     ax.legend()
 
     for i in rects_lst:
@@ -475,9 +480,9 @@ print()
 
 # plt.show()
 
-fig, ax = plt.subplots()
-graph_tot_health(ax)
-plt.show()
+# fig, ax = plt.subplots()
+# graph_tot_health(ax)
+# plt.show()
 
 
 # stat, p_val = stats.ttest_ind(ctr_signed_in.CTR, ctr_not_signed_in.CTR, equal_var=False)
@@ -578,7 +583,7 @@ def get_p_value(n, p, bad, limit=4000, graph_dist=False, graph_p=False):
         
         plt.axvline(x=bad)
         ax.plot(x, normal_approx.pdf(x), linewidth=3)
-        ax.set_xlim(binomial_mean-4*std, binomial_mean+7*std)
+        ax.set_xlim(binomial_mean-3*std, binomial_mean+65*std)
         ax.fill_between(x, normal_approx.pdf(x), 
                         where=(x >= bad-1), color="red", alpha=0.5)
         ax.set_title("p-value Region")
@@ -618,13 +623,14 @@ def reveal_results():
         else:
             print(f'We fail to reject the null hypothesis with a value of {p_values[i]} at an indicator score of {str(i)}')
 
-# reveal_results()
+reveal_results()
 
 # print(get_indv_p_values(agg_df))
 
-#! fig, ax = plt.subplots(figsize=(16,7))   
-#! plot_cat_col(agg_df, 'tot_ind', ax)
+# fig, ax = plt.subplots(figsize=(16,7))   
+# plot_cat_col(agg_df, 'tot_ind', ax)
 
+# plt.show()
 
 
 # zero_bad, zero_ind_tot, p_val, tot_uh_trees, n_val, ind_ratio = ratio_of_G_to_nG(get_diction(agg_df, 'tot_ind'))
