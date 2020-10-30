@@ -8,8 +8,6 @@
 6. [Conclusion](#Conclusion)
  
  
-## Third Example
-## [Fourth Example](http://www.fourthexample.com)
 ## Goal
 To determine if factors recorded in the 2015 NYC tree census correspond to tree health.
  
