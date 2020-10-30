@@ -4,13 +4,13 @@ import matplotlib.pyplot as plt
 from scipy.stats import ttest_1samp
 import scipy.stats as stats
 import time
+# import matplotlib.pyplot as plt
+# import matplotlib.colors as mcolors
 
 t0 = time.time()
 print(t0)
-plt.rcParams.update({'font.size': 16, 'font.family': 'sans'})
+plt.rcParams.update({'font.size': 18, 'font.family': 'sans'})
 plt.style.use('ggplot')
-
-
 
 
 pd.set_option('display.max_row', 100)
@@ -18,12 +18,12 @@ pd.set_option('display.max_columns', 50)
 
 tc = pd.read_csv('/Users/riley/Desktop/DSI/den-19/capstones/Capstone_one/tree-csvs/new_york_tree_census_2015.csv')
 #sample for testing will change tc1 back to tc upon deletion
-# tc.drop(index=297358, inplace=True) #can only use with orig tc
+tc.drop(index=297358, inplace=True) #can only use with orig tc
 
-# tc = tc1.sample(50000, random_state=2)
+# tc = tc1.sample(10000, random_state=2)
 tsp = pd.read_csv('/Users/riley/Desktop/DSI/den-19/capstones/Capstone_one/tree-csvs/new_york_tree_species.csv') 
 
-tc.drop(index=297358, inplace=True) #can only use with orig tc
+# tc.drop(index=297358, inplace=True) #can only use with orig tc
 
 # You don't have guards and stewards for dead trees or stumps all the issues except 51 were directly related to that issue the 48 of the 51 
 # Nan values were in the problems section
@@ -31,14 +31,21 @@ tc.drop(index=297358, inplace=True) #can only use with orig tc
 
 indicator_cols = ['curb_loc', 'spc_latin', 'steward', 'guards', 'sidewalk', 'user_type', \
     'problems', 'root_stone', 'root_grate', 'root_other', 'trunk_wire', 'trnk_light', 'trnk_other', \
-        'brch_light', 'brch_shoe', 'brch_other', 'zipcode', 'borocode' ]
+        'brch_light', 'brch_shoe', 'brch_other', 'zipcode', 'boroname' ]
 
 binom_cols = ['root_stone', 'root_grate', 'root_other', 'trunk_wire', 'trnk_light', 'trnk_other', \
         'brch_light', 'brch_shoe', 'brch_other', 'sidewalk', 'problems']
 
-non_bin_ind_col = ['curb_loc', 'steward', 'sidewalk', 'user_type', 'borocode']
+cat_col = ['curb_loc', 'steward', 'user_type', 'boroname']
 
 def clean_data():
+    """
+    [Removes NaN values and replaces values that cannot be used with those that can. All health NaN values were related
+    to tree status being either Dead or Stump and as a result those were mirrored for consistency of value type and information.
+    Problem was changed from categorical to binary because the inputs were so inconsistent it seemed more accurate to evaluate it 
+    as a whole.
+    ]
+    """    
     #assign health category
     tc.loc[tc.status == 'Dead', 'health'] = 'Dead'
     tc.loc[tc.status == 'Stump', 'health'] = 'Stump'
@@ -46,18 +53,14 @@ def clean_data():
     tc.loc[tc.sidewalk == 'NoDamage', 'sidewalk'] = 0
     tc.loc[tc.sidewalk == 'Damage', 'sidewalk'] = 1
 
-    
-    
-
     tc['spc_latin'] = tc['spc_latin'].replace([np.nan],'Unknown')
     tc['spc_common'] = tc['spc_common'].replace([np.nan],'Unknown')
-    tc['steward'] = tc['steward'].replace([np.nan],'None')
-    tc['guards'] = tc['guards'].replace([np.nan],'None')
-    tc['sidewalk'] = tc['sidewalk'].replace([np.nan],'None')
+    tc['steward'] = tc['steward'].replace([np.nan],'Dead')
+    tc['guards'] = tc['guards'].replace([np.nan],'Dead')
+    tc['sidewalk'] = tc['sidewalk'].replace([np.nan],'Dead')
     tc['problems'] = tc['problems'].replace([np.nan], "Unknown") 
 
-    #! problems made into binary due to inability to consolodate many unique problem errors
-    # tc['problems'] = tc['problems']str.replace("None", '0') 
+    
     for i in 'SWTRMB':
         tc['problems'] = tc['problems'].str.replace(rf'{i}.+', '1') 
     tc.loc[tc.problems == "None", 'problems'] = 0
@@ -72,10 +75,8 @@ t1 = time.time()
 print(t1-t0)
 print('clean')
 print()
-#need to account for problem column and zipcode
-# 'curb_loc' is categorical needs each value processed as a "Yes" separately Use intermediate value to have "third option"
-# only while switcing to yes for the sake of using function to plot
-#zipcode
+
+
 
 better_col_names = {
     'curb_loc': 'Curb Location',
@@ -96,7 +97,16 @@ better_col_names = {
     'brch_other': "Branch Issue (Other)",
     'zipcode': 'Zipcode',
     'borocode': "Borough Code",
+    'boroname': "Borough Name",
     'tot_ind': "Aggregate Indicator Value"
+}
+better_cat_tick_names = {
+    "None": "No Signs",
+    "1or2": "1-2 Signs",
+    "3or4": "3-4 Signs",
+    "4orMore": "5+ Signs",
+    "OnCurb": "On The Curb",
+    "OffsetFromCurb": "Away From Curb"
 }
 
 binary_sum_df = binom_cols.copy()
@@ -173,8 +183,6 @@ for i in tc.columns:
     for value in tc[i].unique():
         cv[i].append(value)
 
-for i in cv['problems']:
-    print(i)
 
 t3 = time.time()
 print(t3-t2)
@@ -200,7 +208,7 @@ def categorical_val(df, column):
     indicators = dict()
     cat_idx = dict()
     for item in cv[column]:
-        if item not in ["Dead", "None"]:
+        if item not in ["Dead"]:
             indicators[item] = 0
             cat_idx[item] = set()
             for idx in df.index:
@@ -281,7 +289,9 @@ def indicator_vs_health(df, indicator_idx_set):
 def graph_tot_health(ax):
 
     D1 = tot_tree_health(tc)
+    print(D1)
     D = {k: v for k, v in sorted(D1.items(), reverse=True, key=lambda item: item[1])}
+    print(D)
     x = np.arange(len(D))
 
     labels = D.keys()
@@ -295,28 +305,66 @@ def graph_tot_health(ax):
                 xytext=(0, 3),  # 3 points vertical offset
                 textcoords="offset points",
                 ha='center', va='bottom')
-             
-    balues = ax.bar(x, D.values(), align='center')
+    colors = ["g", "orange", "m", "saddlebrown", 'black']
+    values = ax.bar(x, D.values(), align='center', color=colors)
+
     ax.set_xticks(x)
     ax.set_xticklabels(labels)
     ax.set_ylabel('Number of trees by Health category')
     ax.set_title('Tree Health')
 
-    autolabel(balues)
+    
+
+    autolabel(values)
+    
     fig.tight_layout()
 
 
-def plottheshit(dick, ax, label_start="Potential Indicators"):
+
+def plottheshit(diction, ax, label_start="Potential Indicators"):
     """[summary]
 
     Args:
-        dick ([dict of dict]): Column: A dictionary with keys being individual indicators
+        diction ([dict of dict]): Column: A dictionary with keys being individual indicators
         Values are the number of trees found presenting a given indicator in each health category.
     """
-    if len(list(dick.keys())) == 11:
-        labels = ['problems', 'sidewalk', 'root_stone', 'brch_light', 'root_other', 'trnk_other', 'brch_other', 'trunk_wire', 'root_grate', 'trnk_light', 'brch_shoe']
-    else:
-        labels = sorted(list(dick.keys()))
+    def labels(diction):
+        """[Adjusts label output based on type of input organizes output by height]
+
+        Args:
+            diction ([dict of dict]): [same dictionary passed to parent function]
+
+        Returns:
+            [Labels]: [list]
+            [better_lables]: list of adjusted labels if necessary
+        """        
+        if len(list(diction.keys())) == 11:
+            labels = ['problems', 'sidewalk', 'root_stone', 'brch_light', 'root_other', 'trnk_other', 'brch_other', 'trunk_wire', 'root_grate', 'trnk_light', 'brch_shoe']
+        else:
+            for i in diction.keys():
+                if i in ["OnCurb", "OffsetFromCurb"]:
+                    labels = ["OnCurb", "OffsetFromCurb"]
+                if i in ["None", "1or2", "3or4", "4orMore"]:
+                    labels = ["None", "1or2", "3or4", "4orMore"]
+                if i in ["TreesCount Staff", 'Volunteer', 'NYC Parks Staff']:
+                    labels = ["TreesCount Staff", 'Volunteer', 'NYC Parks Staff']
+                if i in ["Queens", "Brooklyn", "Manhattan", "Bronx", "Staten Island"]:
+                    labels = ["Queens", "Brooklyn", "Manhattan", "Bronx", "Staten Island"]
+        # else:
+        #     labels = sorted(list(diction.keys()))
+            
+        better_labels = []
+        if labels[0] in better_col_names.keys():
+            for i in labels:
+                better_labels.append(better_col_names[i])
+        elif labels[0] in better_cat_tick_names.keys():
+            for i in labels:
+                better_labels.append(better_cat_tick_names[i])
+        else:
+            better_labels = labels
+        return labels, better_labels
+    
+    labels, better_labels = labels(diction)
     Good = []
     Fair = []
     Poor = []
@@ -327,17 +375,12 @@ def plottheshit(dick, ax, label_start="Potential Indicators"):
         "Poor": Poor,
         "Dead": Dead
     }
-    better_labels = []
-    if labels[0] in better_col_names.keys():
-        for i in labels:
-            better_labels.append(better_col_names[i])
-    else:
-        better_labels = labels
+    
     def autolabel(rects):
         """Attach a text label above each bar in *rects*, displaying its height."""
         for rect in rects:
             height = rect.get_height()
-            ax.annotate('{}'.format(height),
+            ax.annotate(f'{height:2}',
                 xy=(rect.get_x() + rect.get_width() / 2, height),
                 xytext=(0, 3),  # 3 points vertical offset
                 textcoords="offset points",
@@ -347,7 +390,7 @@ def plottheshit(dick, ax, label_start="Potential Indicators"):
     print(labels)
     for col in labels:
         for k, v in status.items():
-            v.append(dick[col][k])
+            v.append(diction[col][k])
 
     x = np.arange(len(labels))
     width = .25
@@ -363,7 +406,7 @@ def plottheshit(dick, ax, label_start="Potential Indicators"):
     ax.set_ylabel('Number of Trees Per Category')
     ax.set_title(f"{label_start} compared to Tree Health")
     ax.set_xticks(x)
-    ax.set_xticklabels(better_labels, rotation=45, ha="right")
+    ax.set_xticklabels(better_labels, rotation=30, ha="right")
     ax.legend()
 
     for i in rects_lst:
@@ -372,19 +415,22 @@ def plottheshit(dick, ax, label_start="Potential Indicators"):
 
 
 
-def plot_cat_col(df, column, ax):
+def plot_cat_col(df, column, ax): 
     """[Plots an individual column defined as Categorical]
 
     Args:
         column ([Str]): [Column to be graphed]
     
-    """    
+    """
+      
     cat_idx = categorical_val(df, column)
     better_column = better_col_names[column]
     cat_vs_health = dict()
     for i in cat_idx.keys():
         cat_vs_health[i] = indicator_vs_health(df, cat_idx[i])
     plottheshit(cat_vs_health, ax,label_start=better_column)
+    
+    
 
 def plot_binom_cols(df, binom_cols, ax):
     """[Plots columns defined as Binomial ( values correlating to 1 or 0]
@@ -404,15 +450,22 @@ print(t4-t3)
 print('plotvals')
 print()
 
-fig, ax = plt.subplots(figsize=(16,10))
-plot_binom_cols(tc, binom_cols, ax)
-plt.show()
+#! maybe next plot_cat_col inside of this as a function so that it's all together
+# for i in cat_col:
+#     fig, ax = plt.subplots(figsize=(16,10)) 
+#     plot_cat_col(tc, i, ax)
+#     plt.show()
+ 
+
+# fig, ax = plt.subplots(figsize=(16,10))
+# plot_binom_cols(tc, binom_cols, ax)
+# plt.show()
 
 print()
 
 t5 = time.time()
 print(t5-t4)
-print('get_dick')
+print('get_diction')
 print()
 print(t5)
 print()
@@ -422,9 +475,9 @@ print()
 
 # plt.show()
 
-# fig, ax = plt.subplots()
-# graph_tot_health(ax)
-# plt.show()
+fig, ax = plt.subplots()
+graph_tot_health(ax)
+plt.show()
 
 
 # stat, p_val = stats.ttest_ind(ctr_signed_in.CTR, ctr_not_signed_in.CTR, equal_var=False)
@@ -435,7 +488,7 @@ print()
 
 
 
-def get_dick(df, column):
+def get_diction(df, column):
     """[outputs dictionary necessary to graph/understand breakdown of indicators compa]
 
     Args:
@@ -493,10 +546,12 @@ def ratio_of_G_to_nG(cat_vs_health):
     return zero_bad, zero_ind_tot, p_val, tot_uh_trees, n_val, ind_ratio
 
 
-
 def get_p_value(n, p, bad, limit=4000, graph_dist=False, graph_p=False):
     if n == "no":
         return "no_p_value_for_you"
+    print(f'{n} is the n value')
+    print(f'{p} is the p value')
+    print(f"{bad}is the number of unhealthy trees we observed")
     binomial_mean = p * n
     binomial_var = n * p * (1-p)
     
@@ -511,41 +566,46 @@ def get_p_value(n, p, bad, limit=4000, graph_dist=False, graph_p=False):
         bars = axs[1].bar(range(n+1), bar_sizes, color="grey", align="center")
         axs[1].plot(x, normal_approx.pdf(x), linewidth=3)
         axs[1].set_xlim(binomial_mean-4*std, binomial_mean+4*std)
-        axs[0].set_title("# of Unhealthy trees under null")
+        axs[0].set_title("Unhealthy Tree Probability Distribution")
         plt.show()
+    
     def hide_dist_p_graph():
-        
         fig, ax = plt.subplots(1, figsize=(16, 3))
 
+        binomial = stats.binom(n=n, p=p)
+        std = np.sqrt(binomial_var)
+        x = np.linspace(0, n, num=n)
+        
+        plt.axvline(x=bad)
         ax.plot(x, normal_approx.pdf(x), linewidth=3)
-        ax.set_xlim(binomial_mean-4*std, binomial_mean+4*std)
+        ax.set_xlim(binomial_mean-4*std, binomial_mean+7*std)
         ax.fill_between(x, normal_approx.pdf(x), 
-                        where=(x >= n-1), color="red", alpha=0.5)
+                        where=(x >= bad-1), color="red", alpha=0.5)
         ax.set_title("p-value Region")
         plt.show()
+    
     if graph_dist == True:
         hide_dist_graph()
     if graph_p ==True:
         hide_dist_p_graph()
+    
     p_value = 1 - normal_approx.cdf(bad-.1)
     print(f"p-value for indicator values is: {p_value:.4f}")
     return p_value
     
-
- 
-# print(get_dick(agg_df, 'tot_ind'))
+# print(get_diction(agg_df, 'tot_ind'))
 
 def get_indv_p_values(agg_df):
     p_value_dict = dict()
     temp_dict = dict()
-    temp_dict_helper = get_dick(agg_df, 'tot_ind')
+    temp_dict_helper = get_diction(agg_df, 'tot_ind')
     temp_dict[0] = temp_dict_helper[0]
     for i in temp_dict_helper.keys():
         if i != 0:
             temp_dict[i] = temp_dict_helper[i]
             print(temp_dict)
             _, w, p, t, n, rt = ratio_of_G_to_nG(temp_dict)
-            p_value_dict[i] = get_p_value(n, p, t, limit=w+t)
+            p_value_dict[i] = get_p_value(n, p, t, limit=w+t, graph_p=True)
             temp_dict.pop(i)
     return p_value_dict
 
@@ -567,7 +627,7 @@ def reveal_results():
 
 
 
-# zero_bad, zero_ind_tot, p_val, tot_uh_trees, n_val, ind_ratio = ratio_of_G_to_nG(get_dick(agg_df, 'tot_ind'))
+# zero_bad, zero_ind_tot, p_val, tot_uh_trees, n_val, ind_ratio = ratio_of_G_to_nG(get_diction(agg_df, 'tot_ind'))
 # for i in [zero_bad, zero_ind_tot, p_val, tot_uh_trees, n_val, ind_ratio]:
 #     print(i)
 
